@@ -92,7 +92,7 @@ async def extract_intent(message: str):
 
 **Requirements:**
 - All external API calls MUST have timeout configuration (default: 10s)
-- Transient failures MUST trigger retry with exponential backoff (3 retries, base delay 1s)
+- Transient failures MUST trigger retry with exponential backoff (3 total attempts, base delay 1s)
 - API clients MUST implement graceful degradation/mock fallback when service unavailable
 - OAuth tokens MUST be cached and refreshed before expiry
 - Rate limit errors MUST be logged with `rate_limit_exceeded` event
