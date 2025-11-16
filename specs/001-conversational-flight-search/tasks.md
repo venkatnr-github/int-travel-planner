@@ -50,6 +50,8 @@ description: "Tasks for implementing 001-conversational-flight-search"
 
 **Checkpoint**: Foundation ready — user story implementation can now begin in parallel
 
+- [ ] T058 [P] Add WebSocket chat endpoint in `int-travel-planner/backend/app/api/chat.py` and route in `int-travel-planner/backend/app/main.py`
+
 ---
 
 ## Phase 3: User Story 1 - Basic Intent Extraction and Flight Search (Priority: P1) 🎯 MVP
@@ -68,6 +70,9 @@ description: "Tasks for implementing 001-conversational-flight-search"
 - [ ] T024 [US1] Implement ranking (50% price, 30% duration, 20% direct) in `int-travel-planner/backend/app/agents/tools/result_ranker.py`
 - [ ] T025 [US1] Implement intent extractor tool using OpenAI in `int-travel-planner/backend/app/agents/tools/intent_extractor.py`
 - [ ] T026 [US1] Implement agent orchestrator in `int-travel-planner/backend/app/agents/orchestrator.py`
+- [ ] T056 [US1] Implement scope guardrails in `int-travel-planner/backend/app/agents/orchestrator.py` and enforce via `int-travel-planner/backend/app/prompts/system_agent_v1.0.0.txt`
+- [ ] T057 [P] [US1] Add prompt injection detection and guardrails in `int-travel-planner/backend/app/validators/guardrails.py` and integrate into orchestrator
+- [ ] T060 [P] [US1] Implement IATA airport validation (Amadeus Locations API or cached list) in `int-travel-planner/backend/app/validators/airport_codes.py` and use in `intent_validator.py`
 - [ ] T027 [US1] Implement chat endpoint (POST) in `int-travel-planner/backend/app/api/chat.py`
 - [ ] T028 [US1] Wire chat router in `int-travel-planner/backend/app/main.py`
 - [ ] T029 [US1] Format response with 3–5 top results in `int-travel-planner/backend/app/api/chat.py`
@@ -123,6 +128,8 @@ description: "Tasks for implementing 001-conversational-flight-search"
 - [ ] T040 [US4] Support selection input and summary return in `int-travel-planner/backend/app/api/chat.py`
 - [ ] T041 [P] [US4] Add formatting template support in `int-travel-planner/backend/app/prompts/system_agent_v1.0.0.txt`
 
+- [ ] T061 [US4] Implement `booking_url` generation strategy in `int-travel-planner/backend/app/services/booking_links.py` and integrate with itinerary generator
+
 **Checkpoint**: User Story 4 delivers copyable itinerary summaries
 
 ---
@@ -171,6 +178,13 @@ description: "Tasks for implementing 001-conversational-flight-search"
 - [ ] T053 Performance instrumentation in `int-travel-planner/backend/app/utils/metrics.py`
 - [ ] T054 [P] Add quickstart guide in `int-travel-planner/specs/001-conversational-flight-search/quickstart.md`
 - [ ] T055 [P] Add golden dataset JSONs in `int-travel-planner/backend/tests/golden_dataset/`
+
+- [ ] T059 [P] Add WebSocket client hook in `int-travel-planner/frontend/src/hooks/useWebSocket.ts` and integrate in `int-travel-planner/frontend/src/components/ChatInterface.tsx`
+- [ ] T062 [P] Add load testing with Locust in `int-travel-planner/backend/tests/load/locustfile.py` targeting 1000 concurrent sessions
+- [ ] T063 [P] Add p95 latency measurement and CI gate; expose operation timings and fail build if p95 > 5s (scripts + CI)
+- [ ] T064 [P] Add token usage and cost tracking metrics in `int-travel-planner/backend/app/utils/metrics.py` and logging enrichment
+- [ ] T065 [P] Add prompt regression tests and CI workflow in `.github/workflows/ai-quality.yml` using golden datasets
+- [ ] T066 [P] Expose Prometheus metrics and add basic dashboards/alerts (Grafana or provider alternative)
 
 ---
 
