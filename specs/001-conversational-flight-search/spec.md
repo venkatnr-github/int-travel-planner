@@ -5,6 +5,8 @@
 **Status**: Draft  
 **Input**: User description: "Conversational flight search with AI agent that extracts user intent from natural language, searches flights via Amadeus API, and provides intelligent recommendations through multi-turn dialogue"
 
+**Note**: "Intelligent recommendations" refers to the multi-factor ranking algorithm (FR-004: 50% price, 30% duration, 20% direct flight preference) and conversational refinement capabilities (FR-007), not personalization or ML-based prediction.
+
 ## Clarifications
 
 ### Session 2025-11-15
@@ -79,7 +81,7 @@ After user selects or shows interest in specific flights, agent generates a form
 1. **Given** user says "I like the second flight option", **When** agent processes selection, **Then** it generates formatted summary with: travel dates, outbound flight details, return flight details, total price, and booking URL
 2. **Given** itinerary summary is generated, **When** user views it, **Then** format is clean markdown/text that can be easily copied and pasted
 3. **Given** user has not explicitly selected a flight, **When** conversation suggests strong interest (multiple questions about one option), **Then** agent proactively offers to generate summary
-4. **Given** summary includes booking link, **When** user clicks it, **Then** they are directed to the airline's website with pre-filled search parameters (if supported by airline)
+4. **Given** summary includes booking link, **When** user clicks it, **Then** they are directed to the airline's website with pre-filled search parameters including carrier, flight number/date, origin/destination, and passenger count when airline APIs support parameterization; fallback to generic search URLs with origin/destination if direct booking links unavailable
 
 ---
 
@@ -143,7 +145,7 @@ System manages conversation session state with 60-minute TTL, handles context wi
 - **FR-005**: System MUST ask clarifying questions when user input is ambiguous or missing critical parameters (max 1-2 questions per turn)
 - **FR-006**: System MUST validate extracted parameters against business rules (future dates, valid airport codes, passenger count 1-9)
 - **FR-007**: System MUST handle search refinement requests ("cheaper options", "direct flights", "earlier dates") without requiring user to repeat all parameters. For "cheaper" requests, filter to flights priced <80% of the lowest price currently shown
-- **FR-008**: System MUST store session state in Redis with 30-60 minute TTL
+- **FR-008**: System MUST store session state in Redis with 60 minutes (3600 seconds) TTL
 - **FR-009**: System MUST generate formatted itinerary summaries with flight details and booking links
 - **FR-010**: System MUST enforce scope boundaries and politely decline non-travel requests
 - **FR-011**: System MUST detect and prevent prompt injection attempts

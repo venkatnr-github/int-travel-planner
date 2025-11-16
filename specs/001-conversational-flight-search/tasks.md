@@ -44,6 +44,7 @@ description: "Tasks for implementing 001-conversational-flight-search"
 - [ ] T013 [P] Implement Redis client with TTL in `int-travel-planner/backend/app/services/redis_client.py`
 - [ ] T014 [P] Add health endpoints in `int-travel-planner/backend/app/api/health.py`
 - [ ] T015 [P] Wire routers and CORS in `int-travel-planner/backend/app/main.py`
+- [ ] T068 [P] Add input validation middleware in `int-travel-planner/backend/app/api/middleware/input_validator.py` to enforce MAX_MESSAGE_LENGTH (2000 chars), truncate if exceeded, and emit structured log event
 - [ ] T016 [P] Create prompts registry in `int-travel-planner/backend/app/prompts/registry.py`
 - [ ] T017 [P] Create initial prompt files in `int-travel-planner/backend/app/prompts/`
 - [ ] T018 [P] Create Pydantic model files in `int-travel-planner/backend/app/models/{intent.py,flight.py,session.py}`
@@ -70,6 +71,7 @@ description: "Tasks for implementing 001-conversational-flight-search"
 - [ ] T024 [US1] Implement ranking (50% price, 30% duration, 20% direct) in `int-travel-planner/backend/app/agents/tools/result_ranker.py`
 - [ ] T025 [US1] Implement intent extractor tool using OpenAI in `int-travel-planner/backend/app/agents/tools/intent_extractor.py`
 - [ ] T026 [US1] Implement agent orchestrator in `int-travel-planner/backend/app/agents/orchestrator.py`
+- [ ] T067 [US1] Enforce Pydantic schema validation on all LLM/tool outputs in `int-travel-planner/backend/app/agents/orchestrator.py` with retry on malformed responses (max 2 attempts)
 - [ ] T056 [US1] Implement scope guardrails in `int-travel-planner/backend/app/agents/orchestrator.py` and enforce via `int-travel-planner/backend/app/prompts/system_agent_v1.0.0.txt`
 - [ ] T057 [P] [US1] Add prompt injection detection and guardrails in `int-travel-planner/backend/app/validators/guardrails.py` and integrate into orchestrator
 - [ ] T060 [P] [US1] Implement IATA airport validation (Amadeus Locations API or cached list) in `int-travel-planner/backend/app/validators/airport_codes.py` and use in `intent_validator.py`
@@ -185,6 +187,7 @@ description: "Tasks for implementing 001-conversational-flight-search"
 - [ ] T064 [P] Add token usage and cost tracking metrics in `int-travel-planner/backend/app/utils/metrics.py` and logging enrichment
 - [ ] T065 [P] Add prompt regression tests and CI workflow in `.github/workflows/ai-quality.yml` using golden datasets
 - [ ] T066 [P] Expose Prometheus metrics and add basic dashboards/alerts (Grafana or provider alternative)
+- [ ] T069 [P] Add optional post-search satisfaction prompt in `int-travel-planner/backend/app/api/chat.py` (thumbs up/down) and log satisfaction_signal event to support SC-006
 
 ---
 
