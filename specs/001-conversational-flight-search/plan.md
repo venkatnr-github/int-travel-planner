@@ -167,7 +167,7 @@ class Settings(BaseSettings):
     
     # Redis
     REDIS_URL: str
-    REDIS_SESSION_TTL: int = 3600  # 60 minutes
+    REDIS_SESSION_TTL: int = 3600  # 60 minutes (locked per constitution)
     REDIS_MAX_CONNECTIONS: int = 50
     
     # Application
@@ -267,8 +267,8 @@ int-travel-planner/
 │   └── templates/
 ├── specs/
 │   └── 001-conversational-flight-search/
-│       ├── spec.md                    # THIS FILE
-│       ├── plan.md                    # Feature specification
+│       ├── spec.md                    # Feature specification
+│       ├── plan.md                    # Implementation plan
 │       └── tasks.md                   # Task breakdown (to be generated)
 ├── docs/
 │   ├── error-codes.md
@@ -501,8 +501,18 @@ Based on Technical Context unknowns, these items require investigation before de
 - `stops` (int): 0 for direct
 - `outbound_segment` (FlightSegment): Departure leg
 - `return_segment` (FlightSegment): Return leg
-- `booking_url` (str): Deep link to airline/booking site
+- `booking_url` (str): Deep link to airline/booking site (see Booking URL Strategy below)
 - `relevance_score` (float): Calculated ranking score
+
+**Booking URL Generation Strategy**:
+
+Supported airline deep links (MVP):
+- **United Airlines**: `https://www.united.com/en/us/fsr/choose-flights?origin={origin}&destination={dest}&departure={dep_date}&return={ret_date}&passengers={pax}`
+- **American Airlines**: `https://www.aa.com/booking/find-flights?origin={origin}&destination={dest}&departureDate={dep_date}&returnDate={ret_date}`
+
+Fallback: Generic search URL with pre-filled origin/destination or airline homepage
+
+Acceptance: Generate valid deep links for ≥2 major carriers; validate with real Amadeus flight results
 
 **Ranking Algorithm** (from clarifications):
 ```
@@ -722,6 +732,49 @@ response:
   503:
     error_code: "SERVICE_UNAVAILABLE"
     message: "External service unavailable"
+```
+
+```yaml
+# contracts/chat_websocket.yaml
+
+WebSocket /ws/chat
+description: Real-time bidirectional chat communication
+
+connection:
+  query_params:
+    session_id:
+      type: string
+      required: false
+      description: "Resume existing session (omit for new)"
+
+client_message:
+  type: object
+  properties:
+    type:
+      type: string
+      enum: [message, ping]
+    content:
+      type: string
+      maxLength: 2000
+      description: "User message content"
+
+server_message:
+  type: object
+  properties:
+    type:
+      type: string
+      enum: [message, flights, error, session_init, pong]
+    session_id: string
+    content: string  # For type=message or type=error
+    flights: FlightOption[]  # For type=flights
+    metadata:
+      intent_confidence: float
+      tool_calls: string[]
+
+errors:
+  close_code: 1008  # Policy violation (rate limit, invalid message)
+  close_code: 1011  # Server error
+  close_code: 1001  # Going away (session expired)
 ```
 
 **Est. Time**: 4 hours
@@ -1103,8 +1156,8 @@ No constitutional violations introduced during design phase.
 
 - [OpenAI Agents SDK Documentation](https://platform.openai.com/docs/assistants/overview)
 - [Amadeus Self-Service API](https://developers.amadeus.com/)
-- [Constitution v2.0.0](/Users/venkatnr/Dev/genai/copilot-ai-projects/int-travel-planner/.specify/memory/constitution.md)
-- [Feature Specification](/Users/venkatnr/Dev/genai/specs/001-conversational-flight-search/spec.md)
+- [Constitution v2.0.0](.specify/memory/constitution.md)
+- [Feature Specification](specs/001-conversational-flight-search/spec.md)
 
 ### Change Log
 
