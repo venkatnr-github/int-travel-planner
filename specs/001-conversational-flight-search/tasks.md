@@ -18,6 +18,44 @@ description: "Tasks for implementing 001-conversational-flight-search"
 - **[Story]**: Which user story this task belongs to (e.g., US1, US2, US3)
 - Include exact file paths in descriptions
 
+## Phase 0: CI/CD Infrastructure (CRITICAL PREREQUISITE)
+
+**Purpose**: Automated testing, quality gates, and deployment pipelines MUST be operational before any feature code is written
+
+**Blocking Requirement**: NO feature implementation (Phases 1-9) can proceed until all Phase 0 tasks are complete and pipelines are passing
+
+### Continuous Integration Workflows
+
+- [ ] T070 [P] Create code quality pipeline in `.github/workflows/ci-quality.yml` with Python linting (ruff, black, isort), type checking (mypy), security scanning (bandit), and coverage threshold (>80%)
+- [ ] T071 [P] Create AI quality pipeline in `.github/workflows/ai-quality.yml` with prompt regression tests, intent extraction validation (>80% accuracy), schema validation, and guardrail tests
+- [ ] T072 [P] Create integration tests pipeline in `.github/workflows/ci-integration.yml` with Redis + FastAPI containers, user story flows, mocked external APIs, and endpoint verification
+- [ ] T073 [P] Create performance gating pipeline in `.github/workflows/ci-performance.yml` with load tests (100 concurrent), p95 latency validation (<5s), and memory usage checks
+- [ ] T074 [P] Create security pipeline in `.github/workflows/ci-security.yml` with dependency scanning (Snyk/Dependabot), container scanning (Trivy), and secret detection (TruffleHog)
+
+### Deployment Configuration
+
+- [ ] T075 [P] Create multi-stage Dockerfile in `int-travel-planner/backend/Dockerfile` with dev and production stages, layer caching optimization
+- [ ] T076 [P] Create test docker-compose in `int-travel-planner/docker-compose.test.yml` for CI integration tests
+- [ ] T077 [P] Add Railway or Render deployment config in `int-travel-planner/railway.toml` or `render.yaml` with staging and production environments
+- [ ] T078 [P] Create deployment pipeline in `.github/workflows/cd-deploy.yml` with staging auto-deploy on main merge, production manual approval, smoke tests, and auto-rollback on failure
+
+### Quality Gates & Monitoring
+
+- [ ] T079 [P] Configure branch protection rules requiring CI checks pass, 1+ code review, no conflicts before merge
+- [ ] T080 [P] Add Sentry integration in `int-travel-planner/backend/app/main.py` for error tracking with release tagging
+- [ ] T081 [P] Create smoke test suite in `int-travel-planner/backend/tests/smoke/test_endpoints.py` for post-deployment validation (health, basic flight search)
+- [ ] T082 [P] Set up GitHub Secrets for API keys (OpenAI, Amadeus, Redis, monitoring) and deployment tokens
+
+### Documentation & Templates
+
+- [ ] T083 [P] Create CI/CD documentation in `int-travel-planner/docs/ci-cd.md` with pipeline descriptions, deployment process, rollback procedures
+- [ ] T084 [P] Add pull request template in `.github/pull_request_template.md` with comprehensive checklist including: code quality (error handling, timeouts, logging), AI quality (prompt versioning, schema validation, guardrails), security (input validation, secrets, rate limiting), performance (no blocking ops, cost documentation), and breaking changes
+- [ ] T085 [P] Configure GitHub Copilot code review integration: enable Copilot for PRs in repository settings, add custom review focus areas for agent patterns, LLM prompt validation, and Pydantic schema enforcement
+
+**Checkpoint**: CI/CD infrastructure complete and operational — feature development can now begin
+
+---
+
 ## Phase 1: Setup (Shared Infrastructure)
 
 **Purpose**: Repository initialization and basic project structure
@@ -195,9 +233,10 @@ description: "Tasks for implementing 001-conversational-flight-search"
 
 ### Phase Dependencies
 
-- Setup (Phase 1): No dependencies — can start immediately
-- Foundational (Phase 2): Depends on Setup completion — BLOCKS all user stories
-- User Stories (Phases 3–8): Depend on Foundational completion; execute P1 first
+- CI/CD Infrastructure (Phase 0): No dependencies — MUST complete first — BLOCKS ALL feature development
+- Setup (Phase 1): Depends on Phase 0 completion — cannot start without operational CI/CD pipelines
+- Foundational (Phase 2): Depends on Phase 1 completion — BLOCKS all user stories
+- User Stories (Phases 3–8): Depend on Phase 0, 1, and 2 completion; execute P1 first
 - Polish (Phase 9): Depends on desired user stories being complete
 
 ### User Story Dependencies
@@ -219,6 +258,7 @@ description: "Tasks for implementing 001-conversational-flight-search"
 - US4: T041 in parallel with T039–T040
 - US5: T045 in parallel with T042–T044
 - US6: T048 in parallel with T047/T049
+- CI/CD: T070–T084 all parallel (independent workflows and configs)
 
 ---
 
@@ -237,6 +277,7 @@ description: "Tasks for implementing 001-conversational-flight-search"
 
 ## Implementation Strategy
 
-- MVP First: Complete Phases 1–2, then Phase 3 (US1). Validate end-to-end via `/api/v1/chat/message`.
-- Incremental Delivery: Add US2 → US3 (P1), then US4–US5 (P2), then US6 (P3).
-- Parallelization: After Phase 2, assign US1–US3 to separate threads if capacity allows.
+- **CI/CD First (MANDATORY)**: Complete Phase 0 entirely before writing any feature code. All pipelines must be operational and passing.
+- **MVP Second**: Complete Phases 1–2, then Phase 3 (US1). Validate end-to-end via `/api/v1/chat/message` with CI checks passing.
+- **Incremental Delivery**: Add US2 → US3 (P1), then US4–US5 (P2), then US6 (P3). Each PR must pass all CI gates.
+- **Parallelization**: After Phase 2, assign US1–US3 to separate threads if capacity allows, but all work must pass CI/CD gates.

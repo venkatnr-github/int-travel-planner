@@ -19,12 +19,14 @@
 - 80%+ intent extraction accuracy
 - <$0.05 per conversation cost
 
-**Timeline Estimate**: 3-4 weeks (P1 features only for MVP validation)
+**Timeline Estimate**: 4-5 weeks (includes CI/CD setup + P1 features for MVP validation)
 
 **Risk Level**: MEDIUM
 - High: OpenAI Agents SDK adoption (newer technology, less community resources)
 - Medium: Amadeus API free tier limits (2K calls/month)
 - Low: Redis session management (well-established pattern)
+
+**Critical Path**: CI/CD infrastructure must be established BEFORE any feature implementation begins to ensure quality gates and automated testing from day one.
 
 ---
 
@@ -318,11 +320,268 @@ int-travel-planner/
 ✅ **Technology Gate**: All technologies from approved stack  
 ✅ **Cost Gate**: Estimated $55-90/month within $100 budget  
 
-**PROCEED TO PHASE 0: No blocking gate failures**
+**PROCEED TO CI/CD SETUP: No blocking gate failures**
 
 ---
 
-## Phase 0: Outline & Research
+## Phase 0: CI/CD Infrastructure (CRITICAL PREREQUISITE)
+
+### Overview
+
+**Objective**: Establish automated quality gates, testing pipelines, and deployment infrastructure BEFORE any feature code is written.
+
+**Rationale**: 
+- Prevents technical debt accumulation
+- Ensures code quality from first commit
+- Enables safe, frequent deployments
+- Catches regressions early (cheaper to fix)
+- Constitutional requirement (Principle VI: Observability)
+
+**Timeline**: 3-5 days (must complete before Phase 1)
+
+**Blocking Requirement**: NO feature implementation can proceed until CI/CD pipelines are operational and passing.
+
+### CI/CD Infrastructure
+
+#### Continuous Integration Requirements
+
+**GitHub Actions Workflows** (all workflows in `.github/workflows/`):
+
+##### 1. Code Quality Pipeline (`ci-quality.yml`)
+- **Trigger**: Pull request, push to main/feature branches
+- **Steps**:
+  - Python linting (ruff, black, isort)
+  - Type checking (mypy)
+  - Security scanning (bandit)
+  - Dependency audit (pip-audit)
+  - Code coverage threshold (>80%)
+- **Exit Criteria**: All checks pass; coverage threshold met
+
+##### 2. AI Quality Pipeline (`ai-quality.yml`)
+- **Trigger**: Pull request affecting prompts/, models/, or agents/
+- **Steps**:
+  - Prompt regression tests (golden datasets)
+  - Intent extraction accuracy validation (>80%)
+  - Schema validation tests
+  - Guardrail effectiveness tests
+  - LLM response format validation
+- **Exit Criteria**: Accuracy >80%; no hallucinations detected
+
+##### 3. Integration Tests Pipeline (`ci-integration.yml`)
+- **Trigger**: Pull request to main
+- **Steps**:
+  - Spin up test containers (Redis, FastAPI)
+  - Run integration tests (user story flows)
+  - Mock external APIs (Amadeus, OpenAI)
+  - Verify HTTP + WebSocket endpoints
+  - Session management tests
+- **Exit Criteria**: All user story tests pass
+
+##### 4. Performance Gating Pipeline (`ci-performance.yml`)
+- **Trigger**: Pull request to main
+- **Steps**:
+  - Run load tests (Locust, 100 concurrent sessions)
+  - Measure p95 latency for flight searches
+  - Validate <5s p95 requirement (SC-005)
+  - Check memory usage under load
+- **Exit Criteria**: p95 <5s; no memory leaks detected
+
+##### 5. Security Pipeline (`ci-security.yml`)
+- **Trigger**: Pull request, daily schedule
+- **Steps**:
+  - Dependency vulnerability scanning (Snyk/Dependabot)
+  - Container image scanning (Trivy)
+  - Secret detection (TruffleHog)
+  - API rate limit tests
+- **Exit Criteria**: No HIGH/CRITICAL vulnerabilities; secrets removed
+
+#### Continuous Deployment Requirements
+
+##### Deployment Environments
+
+**1. Development Environment**
+- **Trigger**: Push to feature branches
+- **Platform**: Railway/Render preview deployments
+- **Configuration**:
+  - `ENABLE_MOCK_DATA=true` (bypass Amadeus API)
+  - OpenAI API with low rate limits
+  - Redis test instance
+- **Purpose**: Developer testing, PR reviews
+
+**2. Staging Environment**
+- **Trigger**: Merge to main branch
+- **Platform**: Railway/Render staging
+- **Configuration**:
+  - Real Amadeus test API
+  - OpenAI production API keys
+  - Redis production-like instance
+  - Full observability stack
+- **Purpose**: Pre-production validation, stakeholder demos
+
+**3. Production Environment**
+- **Trigger**: Manual approval after staging validation
+- **Platform**: Railway/Render production
+- **Configuration**:
+  - Production API keys
+  - Upstash Redis (paid tier if needed)
+  - Full monitoring/alerting
+  - Rate limiting enabled
+- **Deployment Strategy**: Blue-green or rolling update
+- **Rollback**: Automatic on health check failure
+
+##### Deployment Pipeline (`cd-deploy.yml`)
+
+**Staging Deployment Steps**:
+1. Build Docker images (backend, frontend)
+2. Push to container registry
+3. Run smoke tests against staging
+4. Deploy to staging environment
+5. Run post-deployment health checks
+6. Notify team (Slack)
+
+**Production Deployment Steps**:
+1. Require manual approval
+2. Tag release (semantic versioning)
+3. Build production images
+4. Deploy with zero-downtime strategy
+5. Run production smoke tests
+6. Monitor error rates for 10 minutes
+7. Auto-rollback if error rate >5%
+8. Update release notes
+
+#### Infrastructure as Code
+
+**Configuration Files**:
+- `.github/workflows/*.yml`: All CI/CD pipelines
+- `docker-compose.yml`: Local development
+- `docker-compose.test.yml`: CI test environment
+- `Dockerfile`: Multi-stage builds (dev, prod)
+- `.dockerignore`: Exclude unnecessary files
+- `railway.toml` or `render.yaml`: Deployment config
+
+**Environment Variables** (stored in GitHub Secrets):
+```
+# OpenAI
+OPENAI_API_KEY
+OPENAI_ORG_ID
+
+# Amadeus
+AMADEUS_API_KEY
+AMADEUS_API_SECRET
+
+# Redis
+REDIS_URL
+REDIS_PASSWORD
+
+# Monitoring
+SENTRY_DSN
+PROMETHEUS_ENDPOINT
+
+# Deployment
+RAILWAY_TOKEN / RENDER_API_KEY
+```
+
+#### Automated Quality Gates
+
+**Pre-Merge Requirements** (branch protection rules):
+- ✅ All CI checks pass
+- ✅ Code review approval (1+ reviewer)
+- ✅ AI quality tests pass (if prompts changed)
+- ✅ Performance tests pass (p95 <5s)
+- ✅ No merge conflicts
+- ✅ Branch up-to-date with main
+
+**Post-Merge Monitoring** (10-minute window):
+- ✅ Staging deployment successful
+- ✅ Health checks pass
+- ✅ Error rate <2%
+- ✅ p95 latency <7s (staging allows higher)
+- ⚠️ Auto-revert on failure
+
+#### Observability Integration
+
+**Metrics Collection**:
+- Prometheus metrics endpoint (`/metrics`)
+- Grafana dashboard auto-provisioning
+- Alert manager configuration
+
+**Log Aggregation**:
+- Structured JSON logs to stdout
+- Railway/Render native log collection
+- Optional: Datadog/LogDNA integration
+
+**Error Tracking**:
+- Sentry integration for backend
+- Source maps for frontend
+- Release tagging for tracking
+
+#### Testing Strategy
+
+**Unit Tests** (fast, no external deps):
+- Target: >80% coverage
+- Run on every commit
+- Mock external services
+
+**Integration Tests** (with test containers):
+- User story end-to-end flows
+- Redis session persistence
+- API contract validation
+- Run on PR to main
+
+**Load Tests** (performance validation):
+- 100 concurrent sessions (CI)
+- 1000 concurrent sessions (pre-production)
+- Measure p95, p99 latency
+- Memory leak detection
+
+**AI Quality Tests** (prompt regression):
+- 50-sample golden dataset
+- Intent extraction accuracy
+- Guardrail effectiveness
+- Hallucination detection
+
+#### Cost Optimization
+
+**CI/CD Cost Targets**:
+- GitHub Actions: Free tier (2000 min/month)
+- Docker builds: Cache layers aggressively
+- Test OpenAI calls: Use mock responses in CI
+- Staging environment: Minimal resources
+
+**Estimated Monthly CI/CD Costs**:
+- GitHub Actions: $0 (within free tier)
+- Railway/Render staging: $5-10
+- Container registry: $0 (GitHub packages free)
+- **Total**: <$15/month
+
+### Phase 0 Deliverables
+
+**Required Outputs** (must be complete before Phase 1):
+
+1. ✅ All 5 CI workflows created and passing
+2. ✅ Multi-stage Dockerfile with optimized builds
+3. ✅ Docker-compose for local dev and CI tests
+4. ✅ Deployment configuration for staging/production
+5. ✅ Branch protection rules enforced
+6. ✅ Sentry error tracking integrated
+7. ✅ Smoke test suite operational
+8. ✅ GitHub Secrets configured
+9. ✅ CI/CD documentation complete
+10. ✅ PR template with quality checklist
+
+**Validation Criteria**:
+- Push empty commit to feature branch → all CI checks pass
+- Merge to main → staging deployment succeeds
+- Smoke tests pass on staging
+- Health endpoints return 200
+- Logs visible in aggregation platform
+- Metrics endpoint accessible
+
+**Est. Time**: 24-32 hours (3-5 days)
+
+---
+
+## Phase 1: Outline & Research
 
 ### Research Questions
 
@@ -939,9 +1198,39 @@ No constitutional violations introduced during design phase.
 
 ### High-Level Milestones
 
-#### Milestone 1: Foundation (Week 1)
+#### Milestone 1: CI/CD Infrastructure (Week 1)
+
+**Goal**: Automated pipelines operational before any feature code
+
+**Prerequisites**: NONE - must complete first
+
+**Key Tasks**:
+- Create all 5 CI workflow files (quality, AI quality, integration, performance, security)
+- Set up multi-stage Dockerfile and docker-compose configurations
+- Configure deployment pipelines for staging/production
+- Establish branch protection rules and quality gates
+- Integrate Sentry error tracking
+- Create smoke test suite
+- Configure GitHub Secrets for all API keys
+- Write CI/CD documentation and PR template
+
+**Success Criteria**:
+- All CI workflows pass on empty commit
+- Staging deployment succeeds
+- Health endpoints return 200
+- Logs visible in aggregation platform
+- Metrics endpoint accessible
+- Branch protection rules enforced
+
+**Estimated Effort**: 24-32 hours (3-5 days)
+
+**BLOCKING**: No feature implementation can begin until this milestone is complete
+
+#### Milestone 2: Foundation (Week 1-2)
 
 **Goal**: Backend infrastructure operational with health checks
+
+**Prerequisites**: Milestone 1 (CI/CD) must be complete
 
 **Key Tasks**:
 - Set up Python project with FastAPI + OpenAI Agents SDK
@@ -955,12 +1244,15 @@ No constitutional violations introduced during design phase.
 - Health checks return 200
 - Redis connection verified
 - Logs output structured JSON
+- All CI checks pass
 
 **Estimated Effort**: 16-20 hours
 
-#### Milestone 2: Intent Extraction (Week 1-2)
+#### Milestone 3: Intent Extraction (Week 2)
 
 **Goal**: Agent can extract travel intent from natural language with >80% accuracy
+
+**Prerequisites**: Milestones 1 & 2 complete
 
 **Key Tasks**:
 - Implement OpenAI Agents SDK orchestrator
@@ -978,9 +1270,11 @@ No constitutional violations introduced during design phase.
 
 **Estimated Effort**: 24-28 hours
 
-#### Milestone 3: Flight Search Tool (Week 2)
+#### Milestone 4: Flight Search Tool (Week 2-3)
 
 **Goal**: Search flights via Amadeus API with ranking and mock fallback
+
+**Prerequisites**: Milestones 1 & 2 complete
 
 **Key Tasks**:
 - Implement Amadeus API client with OAuth2 authentication
@@ -998,9 +1292,11 @@ No constitutional violations introduced during design phase.
 
 **Estimated Effort**: 20-24 hours
 
-#### Milestone 4: Conversational Refinement (Week 2-3)
+#### Milestone 5: Conversational Refinement (Week 3)
 
 **Goal**: Multi-turn context maintained, search refinement works
+
+**Prerequisites**: Milestones 1 & 2 complete
 
 **Key Tasks**:
 - Implement session management in Redis with TTL
@@ -1017,9 +1313,11 @@ No constitutional violations introduced during design phase.
 
 **Estimated Effort**: 16-20 hours
 
-#### Milestone 5: Frontend Integration (Week 3)
+#### Milestone 6: Frontend Integration (Week 3-4)
 
 **Goal**: React chat UI functional with WebSocket connection
+
+**Prerequisites**: Milestones 1 & 2 complete
 
 **Key Tasks**:
 - Build React chat interface with shadcn/ui components
@@ -1036,9 +1334,11 @@ No constitutional violations introduced during design phase.
 
 **Estimated Effort**: 16-20 hours
 
-#### Milestone 6: Testing & Validation (Week 3-4)
+#### Milestone 7: Testing & Validation (Week 4-5)
 
 **Goal**: All P1 user stories validated, success criteria met
+
+**Prerequisites**: Milestones 3-6 complete
 
 **Key Tasks**:
 - Run golden dataset regression tests
@@ -1053,16 +1353,23 @@ No constitutional violations introduced during design phase.
 - SC-001 through SC-015 measured and meet thresholds
 - Cost per conversation <$0.05 (SC-012)
 - No P1 blocking bugs
+- All CI checks continue passing
 
 **Estimated Effort**: 20-24 hours
 
 ### Total Effort Estimate
 
+**CI/CD Infrastructure** (Phase 0 - MANDATORY): **24-32 hours** (3-5 days)
+
 **P1 Features Only** (MVP Core): **112-136 hours** (3-4 weeks for 1 developer)
+
+**Total MVP Delivery**: **136-168 hours** (4-5 weeks for 1 developer)
 
 **P2 Features** (Production Readiness): +24-32 hours (error handling, itinerary generation)
 
 **P3 Features** (Nice-to-Have): +16-20 hours (session context limits)
+
+**Note**: CI/CD setup is NOT optional and must be completed before any feature development begins.
 
 ---
 
@@ -1134,10 +1441,11 @@ No constitutional violations introduced during design phase.
 ## Next Steps
 
 1. **Review & Approve Plan**: Stakeholder sign-off on scope, timeline, architecture
-2. **Execute Phase 0**: Complete research.md (2-3 days)
-3. **Execute Phase 1**: Complete design artifacts (1-2 days)
-4. **Generate Tasks**: Run `/speckit.tasks` to create detailed task breakdown
-5. **Begin Implementation**: Start Milestone 1 (Foundation)
+2. **Execute Phase 0 (CI/CD)**: Set up all pipelines and quality gates (3-5 days) - **BLOCKING REQUIREMENT**
+3. **Execute Phase 1 (Research)**: Complete research.md (2-3 days)
+4. **Execute Phase 2 (Design)**: Complete design artifacts (1-2 days)
+5. **Generate Tasks**: Run `/speckit.tasks` to create detailed task breakdown
+6. **Begin Feature Implementation**: Start Milestone 2 (Foundation) only after CI/CD is operational
 
 ---
 
