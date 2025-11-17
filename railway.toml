@@ -1,0 +1,64 @@
+# Railway deployment configuration for int-travel-planner
+#
+# Deploy with: railway up
+# Docs: https://docs.railway.app/develop/config-as-code
+
+# Staging environment
+[staging]
+  service = "int-travel-planner-staging"
+  region = "us-west1"
+  
+  [staging.build]
+    dockerfile = "backend/Dockerfile"
+    target = "production"
+  
+  [staging.deploy]
+    runtime = "python"
+    startCommand = "gunicorn app.main:app --workers 2 --worker-class uvicorn.workers.UvicornWorker --bind 0.0.0.0:$PORT"
+    healthcheckPath = "/health/ready"
+    healthcheckTimeout = 10
+    restartPolicyType = "on_failure"
+    restartPolicyMaxRetries = 3
+  
+  [staging.variables]
+    APP_ENV = "staging"
+    LOG_LEVEL = "INFO"
+    ENABLE_MOCK_DATA = "false"
+    REDIS_SESSION_TTL = "3600"
+    MAX_MESSAGES_PER_SESSION = "50"
+    RATE_LIMIT_SESSIONS_PER_IP_PER_HOUR = "10"
+  
+  # Secrets to be configured via Railway dashboard or CLI:
+  # railway variables set OPENAI_API_KEY=sk-...
+  # railway variables set AMADEUS_API_KEY=...
+  # railway variables set AMADEUS_API_SECRET=...
+  # railway variables set REDIS_URL=redis://...
+  # railway variables set SENTRY_DSN=https://...
+
+# Production environment
+[production]
+  service = "int-travel-planner-prod"
+  region = "us-west1"
+  
+  [production.build]
+    dockerfile = "backend/Dockerfile"
+    target = "production"
+  
+  [production.deploy]
+    runtime = "python"
+    startCommand = "gunicorn app.main:app --workers 4 --worker-class uvicorn.workers.UvicornWorker --bind 0.0.0.0:$PORT --access-logfile - --error-logfile -"
+    healthcheckPath = "/health/ready"
+    healthcheckTimeout = 10
+    restartPolicyType = "on_failure"
+    restartPolicyMaxRetries = 5
+  
+  [production.variables]
+    APP_ENV = "production"
+    LOG_LEVEL = "WARNING"
+    ENABLE_MOCK_DATA = "false"
+    REDIS_SESSION_TTL = "3600"
+    MAX_MESSAGES_PER_SESSION = "50"
+    RATE_LIMIT_SESSIONS_PER_IP_PER_HOUR = "10"
+  
+  # Secrets configured same as staging
+  # Use separate keys for production!

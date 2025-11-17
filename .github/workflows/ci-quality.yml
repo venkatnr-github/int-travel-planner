@@ -1,0 +1,85 @@
+name: Code Quality
+
+on:
+  pull_request:
+    branches: [main, develop]
+  push:
+    branches: [main, develop]
+
+jobs:
+  python-quality:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      
+      - name: Install dependencies
+        run: |
+          cd backend
+          pip install --upgrade pip
+          pip install ruff black isort mypy bandit pip-audit pytest pytest-cov
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+      
+      - name: Run Ruff (linter)
+        run: |
+          cd backend
+          ruff check app/ tests/ --output-format=github
+        continue-on-error: false
+      
+      - name: Check code formatting with Black
+        run: |
+          cd backend
+          black --check app/ tests/
+      
+      - name: Check import sorting with isort
+        run: |
+          cd backend
+          isort --check-only app/ tests/
+      
+      - name: Run type checking with mypy
+        run: |
+          cd backend
+          mypy app/ --ignore-missing-imports --no-error-summary
+      
+      - name: Run security scanning with Bandit
+        run: |
+          cd backend
+          bandit -r app/ -f json -o bandit-report.json || true
+          bandit -r app/ -ll
+      
+      - name: Run dependency audit
+        run: |
+          cd backend
+          pip-audit --desc --fix-version
+        continue-on-error: true
+      
+      - name: Run tests with coverage
+        run: |
+          cd backend
+          pytest tests/ --cov=app --cov-report=term --cov-report=xml --cov-fail-under=80
+        if: hashFiles('backend/tests/**/*.py') != ''
+      
+      - name: Upload coverage reports
+        uses: codecov/codecov-action@v4
+        with:
+          file: ./backend/coverage.xml
+          flags: backend
+          name: backend-coverage
+        if: hashFiles('backend/tests/**/*.py') != ''
+        continue-on-error: true
+      
+      - name: Comment coverage on PR
+        uses: py-cov-action/python-coverage-comment-action@v3
+        with:
+          GITHUB_TOKEN: ${{ github.token }}
+          MINIMUM_GREEN: 80
+          MINIMUM_ORANGE: 60
+        if: github.event_name == 'pull_request' && hashFiles('backend/tests/**/*.py') != ''
+        continue-on-error: true

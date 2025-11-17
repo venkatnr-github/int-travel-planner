@@ -1,0 +1,122 @@
+name: Integration Tests
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  integration-tests:
+    runs-on: ubuntu-latest
+    
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      
+      - name: Install dependencies
+        run: |
+          cd backend
+          pip install --upgrade pip
+          pip install pytest pytest-asyncio httpx
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+      
+      - name: Start FastAPI test server
+        run: |
+          cd backend
+          python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 &
+          sleep 5
+        env:
+          REDIS_URL: redis://localhost:6379
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          AMADEUS_API_KEY: ${{ secrets.AMADEUS_API_KEY }}
+          AMADEUS_API_SECRET: ${{ secrets.AMADEUS_API_SECRET }}
+          ENABLE_MOCK_DATA: true
+          LOG_LEVEL: INFO
+      
+      - name: Wait for server to be ready
+        run: |
+          for i in {1..30}; do
+            if curl -f http://localhost:8000/health/ready; then
+              echo "Server is ready"
+              break
+            fi
+            echo "Waiting for server... ($i/30)"
+            sleep 2
+          done
+      
+      - name: Run user story flow tests
+        run: |
+          cd backend
+          pytest tests/integration/test_user_stories.py -v --tb=short
+        if: hashFiles('backend/tests/integration/test_user_stories.py') != ''
+        env:
+          API_BASE_URL: http://localhost:8000
+          REDIS_URL: redis://localhost:6379
+      
+      - name: Test HTTP endpoints
+        run: |
+          cd backend
+          pytest tests/integration/test_endpoints.py -v --tb=short
+        if: hashFiles('backend/tests/integration/test_endpoints.py') != ''
+        env:
+          API_BASE_URL: http://localhost:8000
+      
+      - name: Test WebSocket endpoints
+        run: |
+          cd backend
+          pytest tests/integration/test_websocket.py -v --tb=short
+        if: hashFiles('backend/tests/integration/test_websocket.py') != ''
+        env:
+          API_BASE_URL: http://localhost:8000
+      
+      - name: Test session management
+        run: |
+          cd backend
+          pytest tests/integration/test_session_management.py -v --tb=short
+        if: hashFiles('backend/tests/integration/test_session_management.py') != ''
+        env:
+          REDIS_URL: redis://localhost:6379
+      
+      - name: Test with mocked external APIs
+        run: |
+          cd backend
+          pytest tests/integration/test_mocked_apis.py -v --tb=short
+        if: hashFiles('backend/tests/integration/test_mocked_apis.py') != ''
+        env:
+          ENABLE_MOCK_DATA: true
+      
+      - name: Verify all endpoints
+        run: |
+          echo "Testing health endpoint..."
+          curl -f http://localhost:8000/health/ready || exit 1
+          
+          echo "Testing chat endpoint..."
+          curl -f -X POST http://localhost:8000/api/v1/chat/message \
+            -H "Content-Type: application/json" \
+            -d '{"message": "I want to fly to Paris"}' || exit 1
+      
+      - name: Upload integration test results
+        uses: actions/upload-artifact@v4
+        with:
+          name: integration-test-results
+          path: backend/test-results/
+        if: always()
+        continue-on-error: true

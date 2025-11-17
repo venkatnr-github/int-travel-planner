@@ -1,0 +1,46 @@
+version: '3.8'
+
+services:
+  backend-test:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: development
+    ports:
+      - "8000:8000"
+    environment:
+      - REDIS_URL=redis://redis-test:6379
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-test-key}
+      - AMADEUS_API_KEY=${AMADEUS_API_KEY:-test-key}
+      - AMADEUS_API_SECRET=${AMADEUS_API_SECRET:-test-secret}
+      - ENABLE_MOCK_DATA=true
+      - LOG_LEVEL=INFO
+      - APP_ENV=testing
+    depends_on:
+      redis-test:
+        condition: service_healthy
+    networks:
+      - test-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health/ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  redis-test:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    networks:
+      - test-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
+
+networks:
+  test-network:
+    driver: bridge
