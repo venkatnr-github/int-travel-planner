@@ -235,7 +235,7 @@ Results are sorted using multi-factor weighted scoring:
 
 ## API Documentation
 
-See [docs/api.md](docs/api.md) for full API documentation.
+See [docs/api.md](docs/api.md) for full API documentation. *(Coming soon)*
 
 ### Key Endpoints
 
